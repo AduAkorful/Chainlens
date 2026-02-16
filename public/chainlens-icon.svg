@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <defs>
+    <radialGradient id="iconGlow" cx="150" cy="150" r="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.25"/>
+      <stop offset="40%" stop-color="#7850ff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#08080f" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="iconGlowFilter">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="300" height="300" fill="#08080f"/>
+
+  <!-- Glow -->
+  <circle cx="150" cy="150" r="120" fill="url(#iconGlow)"/>
+
+  <!-- Outer hexagon -->
+  <polygon points="150,50 236,100 236,200 150,250 64,200 64,100" fill="none" stroke="#00d4ff" stroke-width="2.5" opacity="0.9" filter="url(#iconGlowFilter)"/>
+
+  <!-- Inner hexagon -->
+  <polygon points="150,85 207,115 207,185 150,215 93,185 93,115" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Lens circle -->
+  <circle cx="150" cy="150" r="42" fill="none" stroke="#00d4ff" stroke-width="2" opacity="0.7"/>
+
+  <!-- Scan lines -->
+  <line x1="114" y1="138" x2="186" y2="138" stroke="#00d4ff" stroke-width="0.8" opacity="0.3"/>
+  <line x1="112" y1="150" x2="188" y2="150" stroke="#00d4ff" stroke-width="1" opacity="0.5"/>
+  <line x1="114" y1="162" x2="186" y2="162" stroke="#00d4ff" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Central pupil -->
+  <circle cx="150" cy="150" r="6" fill="#00ff88" filter="url(#iconGlowFilter)"/>
+
+  <!-- Vertex nodes -->
+  <circle cx="150" cy="50" r="6" fill="#00d4ff" filter="url(#iconGlowFilter)"/>
+  <circle cx="236" cy="100" r="6" fill="#00ff88" filter="url(#iconGlowFilter)"/>
+  <circle cx="236" cy="200" r="6" fill="#00d4ff" filter="url(#iconGlowFilter)"/>
+  <circle cx="150" cy="250" r="6" fill="#00ff88" filter="url(#iconGlowFilter)"/>
+  <circle cx="64" cy="200" r="6" fill="#00d4ff" filter="url(#iconGlowFilter)"/>
+  <circle cx="64" cy="100" r="6" fill="#00ff88" filter="url(#iconGlowFilter)"/>
+
+  <!-- Corner bracket reticle -->
+  <g stroke="#00d4ff" stroke-width="2" opacity="0.6">
+    <line x1="35" y1="25" x2="35" y2="55"/>
+    <line x1="35" y1="25" x2="65" y2="25"/>
+    <line x1="265" y1="25" x2="265" y2="55"/>
+    <line x1="265" y1="25" x2="235" y2="25"/>
+    <line x1="35" y1="275" x2="35" y2="245"/>
+    <line x1="35" y1="275" x2="65" y2="275"/>
+    <line x1="265" y1="275" x2="265" y2="245"/>
+    <line x1="265" y1="275" x2="235" y2="275"/>
+  </g>
+</svg>

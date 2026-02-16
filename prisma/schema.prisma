@@ -1,0 +1,100 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [vector]
+}
+
+model Section {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  description String?
+  icon        String?
+  order       Int          @default(0)
+  mcpEndpoint String       @unique
+  subsections Subsection[]
+  sources     DocSource[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Subsection {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  icon        String?
+  order       Int         @default(0)
+  sectionId   String
+  section     Section     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  mcpEndpoint String      @unique
+  sources     DocSource[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([sectionId, slug])
+}
+
+model DocSource {
+  id            String      @id @default(cuid())
+  name          String
+  type          SourceType
+  url           String?
+  version       String?
+  description   String?
+  sectionId     String?
+  section       Section?    @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  subsectionId  String?
+  subsection    Subsection? @relation(fields: [subsectionId], references: [id], onDelete: SetNull)
+  mcpEndpoint   String      @unique
+  status        IndexStatus @default(PENDING)
+  chunkCount    Int         @default(0)
+  lastIndexedAt DateTime?
+  refreshCron   String?
+  errorLog      String?
+  crawlDepth    Int         @default(1)
+  includePatterns String?
+  excludePatterns String?
+  branch        String?
+  indexOptions  String?
+  chunks        DocChunk[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model DocChunk {
+  id         String   @id @default(cuid())
+  sourceId   String
+  source     DocSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  content    String
+  heading    String?
+  url        String?
+  filePath   String?
+  chunkIndex Int
+  tokenCount Int
+  embedding  Unsupported("vector(768)")?
+  tsv        Unsupported("tsvector")?
+  createdAt  DateTime @default(now())
+
+  @@index([sourceId])
+}
+
+enum SourceType {
+  URL
+  GITHUB_REPO
+  PDF
+}
+
+enum IndexStatus {
+  PENDING
+  INDEXING
+  READY
+  ERROR
+  REFRESHING
+}

@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="360" viewBox="0 0 900 360">
+  <defs>
+    <radialGradient id="glow" cx="150" cy="180" r="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.25"/>
+      <stop offset="40%" stop-color="#7850ff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#08080f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="divider" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glowFilter">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="360" fill="#08080f"/>
+
+  <!-- Background dot grid (right half) -->
+  <g opacity="0.06">
+    <pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="1" fill="#f0f0f8"/>
+    </pattern>
+    <rect x="350" y="0" width="550" height="360" fill="url(#dots)"/>
+  </g>
+
+  <!-- Glow behind icon -->
+  <circle cx="150" cy="170" r="140" fill="url(#glow)"/>
+
+  <!-- Outer hexagon -->
+  <polygon points="150,70 219,110 219,190 150,230 81,190 81,110" fill="none" stroke="#00d4ff" stroke-width="2" opacity="0.9" filter="url(#glowFilter)"/>
+
+  <!-- Inner hexagon -->
+  <polygon points="150,100 196,123 196,177 150,200 104,177 104,123" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.4"/>
+
+  <!-- Lens circle -->
+  <circle cx="150" cy="150" r="35" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Scan lines inside lens -->
+  <line x1="120" y1="140" x2="180" y2="140" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+  <line x1="118" y1="150" x2="182" y2="150" stroke="#00d4ff" stroke-width="0.9" opacity="0.5"/>
+  <line x1="120" y1="160" x2="180" y2="160" stroke="#00d4ff" stroke-width="0.7" opacity="0.3"/>
+
+  <!-- Central pupil -->
+  <circle cx="150" cy="150" r="5" fill="#00ff88" filter="url(#glowFilter)"/>
+
+  <!-- Vertex nodes (alternating cyan and green) -->
+  <circle cx="150" cy="70" r="5" fill="#00d4ff" filter="url(#glowFilter)"/>
+  <circle cx="219" cy="110" r="5" fill="#00ff88" filter="url(#glowFilter)"/>
+  <circle cx="219" cy="190" r="5" fill="#00d4ff" filter="url(#glowFilter)"/>
+  <circle cx="150" cy="230" r="5" fill="#00ff88" filter="url(#glowFilter)"/>
+  <circle cx="81" cy="190" r="5" fill="#00d4ff" filter="url(#glowFilter)"/>
+  <circle cx="81" cy="110" r="5" fill="#00ff88" filter="url(#glowFilter)"/>
+
+  <!-- Corner bracket reticle -->
+  <g stroke="#00d4ff" stroke-width="1.5" opacity="0.6">
+    <!-- Top-left -->
+    <line x1="60" y1="50" x2="60" y2="70"/>
+    <line x1="60" y1="50" x2="80" y2="50"/>
+    <!-- Top-right -->
+    <line x1="240" y1="50" x2="240" y2="70"/>
+    <line x1="240" y1="50" x2="220" y2="50"/>
+    <!-- Bottom-left -->
+    <line x1="60" y1="250" x2="60" y2="230"/>
+    <line x1="60" y1="250" x2="80" y2="250"/>
+    <!-- Bottom-right -->
+    <line x1="240" y1="250" x2="240" y2="230"/>
+    <line x1="240" y1="250" x2="220" y2="250"/>
+  </g>
+
+  <!-- Wordmark: "chain" in off-white + "lens" in cyan -->
+  <text x="340" y="175" font-family="'Syne', 'Segoe UI', sans-serif" font-weight="700" font-size="72" letter-spacing="-1">
+    <tspan fill="#f0f0f8">chain</tspan><tspan fill="#00d4ff">lens</tspan>
+  </text>
+
+  <!-- Divider line -->
+  <rect x="340" y="200" width="380" height="1.5" fill="url(#divider)" rx="1"/>
+
+  <!-- Tagline -->
+  <text x="340" y="235" font-family="'JetBrains Mono', 'Consolas', monospace" font-size="14" fill="#8888aa" letter-spacing="0.5">
+    EVM Knowledge Hub  ·  MCP-Powered
+  </text>
+
+  <!-- Version badge pill -->
+  <rect x="640" y="220" width="72" height="22" rx="11" fill="#08080f" stroke="#00d4ff" stroke-width="1" opacity="0.8"/>
+  <text x="676" y="235" font-family="'JetBrains Mono', 'Consolas', monospace" font-size="11" fill="#00ff88" text-anchor="middle" font-weight="500">v0.8.0+</text>
+</svg>
