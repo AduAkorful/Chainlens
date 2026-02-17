@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db"
 export async function GET() {
   const results = {
     db: false,
-    gemini: false,
+    voyage: false,
     inngest: false,
   }
 
@@ -16,15 +16,25 @@ export async function GET() {
   }
 
   try {
-    if (process.env.GEMINI_API_KEY) {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`,
-        { signal: AbortSignal.timeout(5000) }
-      )
-      results.gemini = res.ok
+    if (process.env.VOYAGE_API_KEY) {
+      const res = await fetch("https://api.voyageai.com/v1/embeddings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.VOYAGE_API_KEY}`,
+        },
+        body: JSON.stringify({
+          input: ["health check"],
+          model: "voyage-code-3",
+          input_type: "document",
+          output_dimension: 1024,
+        }),
+        signal: AbortSignal.timeout(10000),
+      })
+      results.voyage = res.ok
     }
   } catch {
-    // gemini not reachable
+    // voyage not reachable
   }
 
   try {

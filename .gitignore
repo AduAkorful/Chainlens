@@ -42,6 +42,7 @@ prisma/migrations/*/migration_lock.toml
 # IDE
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 

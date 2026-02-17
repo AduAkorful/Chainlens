@@ -1,7 +1,7 @@
 -- Run this in Supabase SQL Editor AFTER running: npx prisma migrate deploy
 -- These cannot be expressed in Prisma schema and must be applied manually.
 
--- Vector similarity index (IVFFlat — fast approximate search for 768-dim vectors)
+-- Vector similarity index (IVFFlat — fast approximate search for 1024-dim vectors)
 CREATE INDEX IF NOT EXISTS doc_chunk_embedding_idx
   ON "DocChunk" USING ivfflat (embedding vector_cosine_ops)
   WITH (lists = 100);

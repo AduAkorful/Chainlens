@@ -34,12 +34,11 @@ export const indexSource = inngest.createFunction(
     })
 
     try {
-      let rawContent: RawContent[] = []
-
-      await step.run("crawl-content", async () => {
+      const rawContent = await step.run("crawl-content", async () => {
+        let content: RawContent[] = []
         switch (source.type) {
           case "URL":
-            rawContent = await crawlUrl({
+            content = await crawlUrl({
               url: source.url!,
               depth: source.crawlDepth ?? 1,
               includePatterns: source.includePatterns
@@ -51,7 +50,7 @@ export const indexSource = inngest.createFunction(
             })
             break
           case "GITHUB_REPO":
-            rawContent = await crawlGithub({
+            content = await crawlGithub({
               url: source.url!,
               branch: source.branch ?? "main",
               indexOptions: source.indexOptions
@@ -60,9 +59,10 @@ export const indexSource = inngest.createFunction(
             })
             break
           case "PDF":
-            rawContent = await parsePdf(source.url!)
+            content = await parsePdf(source.url!)
             break
         }
+        return content
       })
 
       const chunks = await step.run("chunk-content", async () => {

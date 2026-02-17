@@ -49,7 +49,7 @@ export async function hybridSearch(params: {
     }
   }
 
-  const queryVector = await embedText(params.query)
+  const queryVector = await embedText(params.query, "query")
   const vectorLiteral = `[${queryVector.join(",")}]`
 
   const versionFilter = params.version

@@ -17,10 +17,12 @@ import { StatusBadge } from "@/components/ui/StatusBadge"
 import { SourceTypeIcon } from "@/components/sources/SourceTypeIcon"
 import { IndexingProgress } from "@/components/sources/IndexingProgress"
 import { useAppStore } from "@/lib/store"
+import { useRealtimeSource } from "@/hooks/useRealtimeSource"
 
 export default function DashboardPage() {
   const queryClient = useQueryClient()
   const { setAddSourceModalOpen } = useAppStore()
+  useRealtimeSource()
 
   const { data: sections = [] } = useQuery({
     queryKey: ["sections"],

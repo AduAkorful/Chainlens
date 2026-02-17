@@ -1,8 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Globe, Github, FileText, ArrowLeft, ArrowRight, Rocket } from "lucide-react"
+import {
+  Globe,
+  Github,
+  FileText,
+  ArrowLeft,
+  ArrowRight,
+  Rocket,
+  CheckCircle,
+  XCircle,
+  Loader2,
+} from "lucide-react"
 import { Modal } from "@/components/ui/Modal"
 import { cn } from "@/lib/utils"
 
@@ -10,7 +20,11 @@ interface AddSourceModalProps {
   open: boolean
   onClose: () => void
   onSubmit: (data: any) => Promise<void>
-  sections: { id: string; name: string; subsections: { id: string; name: string }[] }[]
+  sections: {
+    id: string
+    name: string
+    subsections: { id: string; name: string }[]
+  }[]
 }
 
 type SourceType = "URL" | "GITHUB_REPO" | "PDF"
@@ -19,15 +33,15 @@ const TYPE_CARDS = [
   {
     type: "URL" as SourceType,
     icon: Globe,
-    emoji: "🌐",
+    emoji: "\u{1F310}",
     title: "Documentation URL",
-    desc: "Any publicly accessible docs website",
+    desc: "Any publicly accessible docs website (JS-rendered supported)",
     color: "accent-cyan",
   },
   {
     type: "GITHUB_REPO" as SourceType,
     icon: Github,
-    emoji: "🐙",
+    emoji: "\u{1F419}",
     title: "GitHub Repository",
     desc: "Public repo; indexes README, /docs, .sol files, .md files",
     color: "accent-purple",
@@ -35,12 +49,57 @@ const TYPE_CARDS = [
   {
     type: "PDF" as SourceType,
     icon: FileText,
-    emoji: "📄",
+    emoji: "\u{1F4C4}",
     title: "PDF Upload",
     desc: "Official whitepapers, audit reports, spec documents",
     color: "accent-green",
   },
 ]
+
+type UrlStatus = "idle" | "checking" | "valid" | "invalid"
+
+function autoSuggestName(url: string, type: SourceType): string {
+  try {
+    if (type === "GITHUB_REPO") {
+      const match = url.match(/github\.com\/([^/]+)\/([^/]+)/)
+      if (match) {
+        const repo = match[2].replace(/\.git$/, "").replace(/-/g, " ")
+        return repo
+          .split(" ")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ")
+      }
+    }
+    if (type === "URL") {
+      const parsed = new URL(url)
+      const host = parsed.hostname.replace(/^(www|docs|doc)\./, "")
+      const parts = host.split(".")
+      const domain = parts[0]
+      const path = parsed.pathname
+        .replace(/\/$/, "")
+        .split("/")
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(" ")
+      const name = path
+        ? `${domain.charAt(0).toUpperCase() + domain.slice(1)} ${path.replace(/-/g, " ")}`
+        : domain.charAt(0).toUpperCase() + domain.slice(1)
+      return name
+    }
+    if (type === "PDF") {
+      const parsed = new URL(url)
+      const filename = parsed.pathname.split("/").pop()?.replace(/\.pdf$/i, "") || ""
+      return filename
+        .replace(/[-_]/g, " ")
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")
+    }
+  } catch {
+    // ignore
+  }
+  return ""
+}
 
 export function AddSourceModal({
   open,
@@ -53,7 +112,9 @@ export function AddSourceModal({
   const [loading, setLoading] = useState(false)
 
   const [name, setName] = useState("")
+  const [nameManuallySet, setNameManuallySet] = useState(false)
   const [url, setUrl] = useState("")
+  const [urlStatus, setUrlStatus] = useState<UrlStatus>("idle")
   const [version, setVersion] = useState("")
   const [sectionId, setSectionId] = useState("")
   const [subsectionId, setSubsectionId] = useState("")
@@ -65,21 +126,67 @@ export function AddSourceModal({
   const [indexSol, setIndexSol] = useState(true)
   const [indexMd, setIndexMd] = useState(true)
   const [indexTests, setIndexTests] = useState(false)
+  const [includePatterns, setIncludePatterns] = useState("")
+  const [excludePatterns, setExcludePatterns] = useState("")
 
   useEffect(() => {
     if (open) {
       setStep(1)
       setSourceType(null)
       setName("")
+      setNameManuallySet(false)
       setUrl("")
+      setUrlStatus("idle")
       setVersion("")
       setSectionId("")
       setSubsectionId("")
       setRefreshCron("none")
       setCrawlDepth(1)
       setBranch("main")
+      setIncludePatterns("")
+      setExcludePatterns("")
     }
   }, [open])
+
+  const validateUrl = useCallback(
+    async (urlToCheck: string) => {
+      if (!urlToCheck) {
+        setUrlStatus("idle")
+        return
+      }
+      try {
+        new URL(urlToCheck)
+      } catch {
+        setUrlStatus("invalid")
+        return
+      }
+      setUrlStatus("checking")
+      try {
+        const res = await fetch("/api/validate-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: urlToCheck }),
+        })
+        const data = await res.json()
+        setUrlStatus(data.reachable ? "valid" : "invalid")
+      } catch {
+        setUrlStatus("invalid")
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    if (!url || !sourceType) return
+    const timer = setTimeout(() => {
+      validateUrl(url)
+      if (!nameManuallySet) {
+        const suggested = autoSuggestName(url, sourceType)
+        if (suggested) setName(suggested)
+      }
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [url, sourceType, nameManuallySet, validateUrl])
 
   const selectedSection = sections.find((s) => s.id === sectionId)
 
@@ -96,6 +203,8 @@ export function AddSourceModal({
         refreshCron: refreshCron === "none" ? undefined : refreshCron,
         crawlDepth,
         branch: sourceType === "GITHUB_REPO" ? branch : undefined,
+        includePatterns: includePatterns || undefined,
+        excludePatterns: excludePatterns || undefined,
         indexOptions:
           sourceType === "GITHUB_REPO"
             ? { indexReadme, indexDocs, indexSol, indexMd, indexTests }
@@ -106,6 +215,15 @@ export function AddSourceModal({
       setLoading(false)
     }
   }
+
+  const urlStatusIcon =
+    urlStatus === "checking" ? (
+      <Loader2 className="h-4 w-4 text-text-secondary animate-spin" />
+    ) : urlStatus === "valid" ? (
+      <CheckCircle className="h-4 w-4 text-accent-green" />
+    ) : urlStatus === "invalid" ? (
+      <XCircle className="h-4 w-4 text-error" />
+    ) : null
 
   return (
     <Modal
@@ -197,14 +315,24 @@ export function AddSourceModal({
                   <label className="block text-sm font-medium text-text-primary mb-1.5">
                     URL
                   </label>
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://docs.example.com/"
-                    className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://docs.example.com/"
+                      className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 pr-9 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
+                      required
+                    />
+                    <span className="absolute right-2.5 top-2.5">
+                      {urlStatusIcon}
+                    </span>
+                  </div>
+                  {urlStatus === "invalid" && url && (
+                    <p className="text-xs text-error mt-1">
+                      URL could not be reached. Check the address.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">
@@ -224,12 +352,50 @@ export function AddSourceModal({
                         )}
                       >
                         {d === 1
-                          ? "1 — Single page"
+                          ? "1 \u2014 Single page"
                           : d === 2
-                            ? "2 — Follow links once"
-                            : "3 — Full site"}
+                            ? "2 \u2014 Follow links once"
+                            : "3 \u2014 Full site"}
                       </button>
                     ))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-1.5">
+                      Include Patterns{" "}
+                      <span className="text-text-secondary font-normal">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={includePatterns}
+                      onChange={(e) => setIncludePatterns(e.target.value)}
+                      placeholder="/docs, /api"
+                      className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
+                    />
+                    <p className="text-xs text-text-secondary mt-1">
+                      Comma-separated URL path segments to include
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-1.5">
+                      Exclude Patterns{" "}
+                      <span className="text-text-secondary font-normal">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      type="text"
+                      value={excludePatterns}
+                      onChange={(e) => setExcludePatterns(e.target.value)}
+                      placeholder="/blog, /changelog"
+                      className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
+                    />
+                    <p className="text-xs text-text-secondary mt-1">
+                      Comma-separated URL path segments to exclude
+                    </p>
                   </div>
                 </div>
               </>
@@ -241,14 +407,19 @@ export function AddSourceModal({
                   <label className="block text-sm font-medium text-text-primary mb-1.5">
                     Repository URL
                   </label>
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://github.com/Uniswap/v3-core"
-                    className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://github.com/Uniswap/v3-core"
+                      className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 pr-9 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
+                      required
+                    />
+                    <span className="absolute right-2.5 top-2.5">
+                      {urlStatusIcon}
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">
@@ -268,11 +439,37 @@ export function AddSourceModal({
                   </label>
                   <div className="space-y-2">
                     {[
-                      { key: "readme", label: "README.md", checked: indexReadme, set: setIndexReadme },
-                      { key: "docs", label: "/docs folder (.md, .mdx)", checked: indexDocs, set: setIndexDocs },
-                      { key: "sol", label: ".sol source files (NatSpec extraction)", checked: indexSol, set: setIndexSol },
-                      { key: "md", label: ".md files anywhere in repo", checked: indexMd, set: setIndexMd },
-                      { key: "tests", label: "Test files (opt-in)", checked: indexTests, set: setIndexTests },
+                      {
+                        key: "readme",
+                        label: "README.md",
+                        checked: indexReadme,
+                        set: setIndexReadme,
+                      },
+                      {
+                        key: "docs",
+                        label: "/docs folder (.md, .mdx)",
+                        checked: indexDocs,
+                        set: setIndexDocs,
+                      },
+                      {
+                        key: "sol",
+                        label:
+                          ".sol source files (NatSpec + function-level extraction)",
+                        checked: indexSol,
+                        set: setIndexSol,
+                      },
+                      {
+                        key: "md",
+                        label: ".md files anywhere in repo",
+                        checked: indexMd,
+                        set: setIndexMd,
+                      },
+                      {
+                        key: "tests",
+                        label: "Test files (opt-in)",
+                        checked: indexTests,
+                        set: setIndexTests,
+                      },
                     ].map((opt) => (
                       <label key={opt.key} className="flex items-center gap-2">
                         <input
@@ -281,7 +478,9 @@ export function AddSourceModal({
                           onChange={(e) => opt.set(e.target.checked)}
                           className="rounded border-border-subtle"
                         />
-                        <span className="text-sm text-text-primary">{opt.label}</span>
+                        <span className="text-sm text-text-primary">
+                          {opt.label}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -301,16 +500,23 @@ export function AddSourceModal({
                   <label className="block text-sm font-medium text-text-primary mb-1.5">
                     PDF URL
                   </label>
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://example.com/whitepaper.pdf"
-                    className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
-                  />
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://example.com/whitepaper.pdf"
+                      className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 pr-9 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
+                    />
+                    <span className="absolute right-2.5 top-2.5">
+                      {urlStatusIcon}
+                    </span>
+                  </div>
                 </div>
                 <div className="rounded-lg bg-warning/10 border border-warning/20 p-3 text-xs text-warning">
-                  Manual .sol file uploads are not supported. Solidity source files must be added via a GitHub repository source to preserve data integrity.
+                  Manual .sol file uploads are not supported. Solidity source
+                  files must be added via a GitHub repository source to preserve
+                  data integrity.
                 </div>
               </>
             )}
@@ -319,11 +525,19 @@ export function AddSourceModal({
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1.5">
                 Name
+                {!nameManuallySet && name && (
+                  <span className="text-xs text-text-secondary ml-2 font-normal">
+                    (auto-suggested)
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  setNameManuallySet(true)
+                }}
                 placeholder="e.g. Uniswap V3 Core Docs"
                 className="w-full rounded-lg border border-border-subtle bg-elevated px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent-cyan/50"
                 required
@@ -453,12 +667,29 @@ export function AddSourceModal({
                   <code className="text-xs font-mono text-accent-cyan">
                     {url}
                   </code>
+                  {urlStatusIcon && <span>{urlStatusIcon}</span>}
                 </div>
               )}
               {version && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-text-secondary">Version:</span>
                   <span className="text-sm text-text-primary">{version}</span>
+                </div>
+              )}
+              {includePatterns && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-text-secondary">Include:</span>
+                  <code className="text-xs font-mono text-text-primary">
+                    {includePatterns}
+                  </code>
+                </div>
+              )}
+              {excludePatterns && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-text-secondary">Exclude:</span>
+                  <code className="text-xs font-mono text-text-primary">
+                    {excludePatterns}
+                  </code>
                 </div>
               )}
               {sectionId && (

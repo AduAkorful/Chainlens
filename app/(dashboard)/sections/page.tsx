@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { SectionTree } from "@/components/sections/SectionTree"
@@ -149,6 +149,26 @@ export default function SectionsPage() {
     onError: () => toast.error("Failed to delete subsection"),
   })
 
+  const handleReorder = useCallback(
+    async (
+      type: "sections" | "subsections",
+      items: { id: string; order: number }[]
+    ) => {
+      try {
+        const res = await fetch("/api/reorder", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type, items }),
+        })
+        if (!res.ok) throw new Error("Reorder failed")
+        queryClient.invalidateQueries({ queryKey: ["sections"] })
+      } catch {
+        toast.error("Failed to reorder")
+      }
+    },
+    [queryClient]
+  )
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -167,6 +187,7 @@ export default function SectionsPage() {
 
       <SectionTree
         sections={sections}
+        onReorder={handleReorder}
         onCreateSection={() => {
           setSectionFormMode("create")
           setEditingSection(null)

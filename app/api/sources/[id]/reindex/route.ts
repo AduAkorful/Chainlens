@@ -27,10 +27,18 @@ export async function POST(
       data: { status: "PENDING" },
     })
 
-    await inngest.send({
-      name: "source/index.requested",
-      data: { sourceId: params.id },
-    })
+    try {
+      await inngest.send({
+        name: "source/index.requested",
+        data: { sourceId: params.id },
+      })
+    } catch (inngestError) {
+      console.warn(
+        "Failed to send Inngest event (dev server may not be running). " +
+          "Source status set to PENDING — trigger manually or start Inngest dev server.",
+        inngestError
+      )
+    }
 
     return NextResponse.json({
       success: true,

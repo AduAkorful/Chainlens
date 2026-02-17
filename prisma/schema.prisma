@@ -78,7 +78,7 @@ model DocChunk {
   filePath   String?
   chunkIndex Int
   tokenCount Int
-  embedding  Unsupported("vector(768)")?
+  embedding  Unsupported("vector(1024)")?
   tsv        Unsupported("tsvector")?
   createdAt  DateTime @default(now())
 

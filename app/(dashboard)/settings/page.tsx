@@ -102,11 +102,11 @@ export default function SettingsPage() {
           <Cpu className="h-5 w-5 text-accent-cyan" />
           <div>
             <div className="text-sm font-medium text-text-primary">
-              Gemini text-embedding-004
+              Voyage AI voyage-code-3
             </div>
             <div className="text-xs text-text-secondary">
-              768 dimensions &middot; Free tier &middot; 1,500 req/day &middot;
-              100 req/min
+              1024 dimensions &middot; 200M tokens free &middot; 2,000 req/min
+              &middot; code-optimized
             </div>
           </div>
         </div>
@@ -128,8 +128,8 @@ export default function SettingsPage() {
             status={health?.db ?? null}
           />
           <HealthCheck
-            label="Gemini API"
-            status={health?.gemini ?? null}
+            label="Voyage AI"
+            status={health?.voyage ?? null}
           />
           <HealthCheck
             label="Inngest"

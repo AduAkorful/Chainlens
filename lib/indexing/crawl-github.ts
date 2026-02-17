@@ -54,7 +54,6 @@ function isPragma08OrAbove(content: string): boolean {
   if (!pragmaMatch) return true
 
   const version = pragmaMatch[1].trim()
-
   if (version.includes("0.8") || version.includes(">=0.8") || version.includes("^0.8")) {
     return true
   }
@@ -68,6 +67,114 @@ function isPragma08OrAbove(content: string): boolean {
   return true
 }
 
+interface NatSpecTags {
+  title?: string
+  author?: string
+  notice?: string
+  dev?: string
+  params: { name: string; desc: string }[]
+  returns: { name: string; desc: string }[]
+}
+
+function parseNatSpec(comment: string): NatSpecTags {
+  const tags: NatSpecTags = { params: [], returns: [] }
+  const lines = comment
+    .replace(/^\/\*\*/, "")
+    .replace(/\*\/$/, "")
+    .split("\n")
+    .map((l) => l.replace(/^\s*\*\s?/, "").trim())
+    .filter(Boolean)
+
+  for (const line of lines) {
+    const tagMatch = line.match(/^@(\w+)\s+(.*)/)
+    if (!tagMatch) continue
+    const [, tag, value] = tagMatch
+    switch (tag) {
+      case "title":
+        tags.title = value
+        break
+      case "author":
+        tags.author = value
+        break
+      case "notice":
+        tags.notice = value
+        break
+      case "dev":
+        tags.dev = value
+        break
+      case "param": {
+        const pm = value.match(/^(\w+)\s+(.*)/)
+        if (pm) tags.params.push({ name: pm[1], desc: pm[2] })
+        break
+      }
+      case "return": {
+        const rm = value.match(/^(\w+)\s+(.*)/)
+        if (rm) tags.returns.push({ name: rm[1], desc: rm[2] })
+        else tags.returns.push({ name: "", desc: value })
+        break
+      }
+    }
+  }
+  return tags
+}
+
+interface FuncMeta {
+  name: string
+  visibility: string
+  mutability: string
+  modifiers: string[]
+  signature: string
+  natspec: NatSpecTags | null
+  body: string
+}
+
+function extractSolidityFunctions(content: string): FuncMeta[] {
+  const results: FuncMeta[] = []
+
+  const funcPattern =
+    /(\/\*\*[\s\S]*?\*\/\s*)?(?:\/\/[^\n]*\n\s*)*(function\s+(\w+)\s*\(([^)]*)\)\s*([^{]*)\{)/g
+  let match
+
+  while ((match = funcPattern.exec(content)) !== null) {
+    const [, natspecBlock, fullSig, funcName, , modLine] = match
+
+    const visibility =
+      (modLine.match(/\b(public|external|internal|private)\b/)?.[1]) || "public"
+    const mutability =
+      (modLine.match(/\b(view|pure|payable)\b/)?.[1]) || ""
+    const modifiers = Array.from(
+      modLine.matchAll(/\b(?!public|external|internal|private|view|pure|payable|returns|virtual|override)\b(\w+)/g)
+    )
+      .map((m) => m[1])
+      .filter((m) => m.length > 1 && m !== "function")
+
+    const natspec = natspecBlock ? parseNatSpec(natspecBlock) : null
+
+    const startIdx = match.index! + match[0].length
+    let braceCount = 1
+    let endIdx = startIdx
+    while (braceCount > 0 && endIdx < content.length) {
+      if (content[endIdx] === "{") braceCount++
+      if (content[endIdx] === "}") braceCount--
+      endIdx++
+    }
+
+    const body = content.slice(match.index!, endIdx)
+
+    results.push({
+      name: funcName,
+      visibility,
+      mutability,
+      modifiers,
+      signature: fullSig.trim(),
+      natspec,
+      body,
+    })
+  }
+
+  return results
+}
+
 function extractSolidityContent(content: string, filePath: string): RawContent[] {
   if (!isPragma08OrAbove(content)) return []
 
@@ -75,40 +182,64 @@ function extractSolidityContent(content: string, filePath: string): RawContent[]
 
   const spdx = content.match(/\/\/\s*SPDX-License-Identifier:\s*(.+)/)?.[1]?.trim()
   const pragma = content.match(/pragma\s+solidity\s+([^;]+);/)?.[1]?.trim()
-
   const contractMatch = content.match(
     /(?:contract|interface|library|abstract\s+contract)\s+(\w+)/
   )
   const contractName = contractMatch?.[1] || filePath.split("/").pop()?.replace(".sol", "")
 
-  const natspecRegex =
-    /\/\*\*[\s\S]*?\*\/\s*(?:function|event|error|(?:contract|interface|library|abstract\s+contract))\s+\w+[^{]*/g
-  const matches = content.match(natspecRegex)
+  const funcs = extractSolidityFunctions(content)
 
-  if (matches) {
-    for (const match of matches) {
-      results.push({
-        content: match.trim(),
-        heading: contractName || undefined,
-        filePath,
-      })
+  for (const func of funcs) {
+    let chunkText = ""
+
+    if (func.natspec) {
+      const ns = func.natspec
+      const parts: string[] = []
+      if (ns.title) parts.push(`@title ${ns.title}`)
+      if (ns.author) parts.push(`@author ${ns.author}`)
+      if (ns.notice) parts.push(`@notice ${ns.notice}`)
+      if (ns.dev) parts.push(`@dev ${ns.dev}`)
+      for (const p of ns.params) parts.push(`@param ${p.name} ${p.desc}`)
+      for (const r of ns.returns) parts.push(`@return ${r.name} ${r.desc}`.trim())
+      if (parts.length) chunkText += "/// " + parts.join("\n/// ") + "\n"
     }
+
+    chunkText += `// ${func.visibility}${func.mutability ? " " + func.mutability : ""}${func.modifiers.length ? " [" + func.modifiers.join(", ") + "]" : ""}\n`
+    chunkText += func.body
+
+    results.push({
+      content: chunkText,
+      heading: `${contractName} > ${func.name}`,
+      filePath,
+    })
   }
 
-  const funcRegex =
-    /(?:\/\/[^\n]*\n\s*)?function\s+\w+\s*\([^)]*\)[^{]*\{/g
-  const funcMatches = content.match(funcRegex)
+  const eventRegex = /(\/\*\*[\s\S]*?\*\/\s*)?event\s+(\w+)\s*\([^)]*\)\s*;/g
+  let eventMatch
+  while ((eventMatch = eventRegex.exec(content)) !== null) {
+    const natspec = eventMatch[1] ? parseNatSpec(eventMatch[1]) : null
+    let text = ""
+    if (natspec?.notice) text += `/// @notice ${natspec.notice}\n`
+    text += eventMatch[0].replace(eventMatch[1] || "", "").trim()
+    results.push({
+      content: text,
+      heading: `${contractName} > event ${eventMatch[2]}`,
+      filePath,
+    })
+  }
 
-  if (funcMatches) {
-    for (const match of funcMatches) {
-      if (!results.some((r) => r.content.includes(match.trim()))) {
-        results.push({
-          content: match.trim(),
-          heading: contractName || undefined,
-          filePath,
-        })
-      }
-    }
+  const errorRegex = /(\/\*\*[\s\S]*?\*\/\s*)?error\s+(\w+)\s*\([^)]*\)\s*;/g
+  let errorMatch
+  while ((errorMatch = errorRegex.exec(content)) !== null) {
+    const natspec = errorMatch[1] ? parseNatSpec(errorMatch[1]) : null
+    let text = ""
+    if (natspec?.notice) text += `/// @notice ${natspec.notice}\n`
+    text += errorMatch[0].replace(errorMatch[1] || "", "").trim()
+    results.push({
+      content: text,
+      heading: `${contractName} > error ${errorMatch[2]}`,
+      filePath,
+    })
   }
 
   if (results.length === 0) {
@@ -119,7 +250,6 @@ function extractSolidityContent(content: string, filePath: string): RawContent[]
     ]
       .filter(Boolean)
       .join("\n")
-
     results.push({
       content: header + "\n\n" + content.slice(0, 2000),
       heading: contractName || undefined,
