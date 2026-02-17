@@ -155,7 +155,13 @@ function extractLinks(html: string, baseUrl: string): string[] {
   return links
 }
 
+const IS_VERCEL = !!process.env.VERCEL
+
 async function renderWithPlaywright(url: string): Promise<string | null> {
+  if (IS_VERCEL) {
+    console.log(`[CrawlUrl] Playwright unavailable on Vercel, using fetch for ${url}`)
+    return null
+  }
   try {
     const { chromium } = await import("playwright")
     const browser = await chromium.launch({

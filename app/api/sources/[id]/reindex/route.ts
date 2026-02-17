@@ -27,22 +27,24 @@ export async function POST(
       data: { status: "PENDING" },
     })
 
+    let inngestSent = false
+    let inngestError: string | null = null
     try {
       await inngest.send({
         name: "source/index.requested",
         data: { sourceId: params.id },
       })
-    } catch (inngestError) {
-      console.warn(
-        "Failed to send Inngest event (dev server may not be running). " +
-          "Source status set to PENDING — trigger manually or start Inngest dev server.",
-        inngestError
-      )
+      inngestSent = true
+    } catch (err: any) {
+      inngestError = err?.message || "Unknown Inngest error"
+      console.warn("Failed to send Inngest event:", inngestError)
     }
 
     return NextResponse.json({
       success: true,
-      message: "Reindex job queued",
+      message: inngestSent ? "Reindex job queued" : "Status set to PENDING but Inngest event failed to send",
+      inngestSent,
+      inngestError,
     })
   } catch (error) {
     console.error("POST /api/sources/[id]/reindex error:", error)

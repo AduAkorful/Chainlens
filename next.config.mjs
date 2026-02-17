@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ["@prisma/client", "prisma"],
+    serverComponentsExternalPackages: [
+      "@prisma/client",
+      "prisma",
+      "playwright",
+      "playwright-core",
+    ],
   },
   images: {
     remotePatterns: [
@@ -10,6 +15,13 @@ const nextConfig = {
         hostname: "**",
       },
     ],
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || []
+      config.externals.push("playwright", "playwright-core")
+    }
+    return config
   },
 }
 
